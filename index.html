@@ -1060,10 +1060,13 @@ db.collection('jp_trips').orderBy('ts','desc').onSnapshot(s => {
     const cagnotte = parseInt(document.getElementById('tot-save').innerText) || 0;
     const diff = cagnotte - d.total;
     l.innerHTML += `
-    <div class="card" style="margin-bottom:12px">
+    <div class="card" style="margin-bottom:12px" id="trip-card-${doc.id}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
         <div><h3 style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--ink)">${d.dest}</h3><p style="font-size:11px;color:var(--muted);margin-top:2px">${d.date||'Dates à définir'}</p></div>
-        <button onclick="del('jp_trips','${doc.id}')" style="color:#DDD;background:none;border:none;cursor:pointer;font-size:18px">×</button>
+        <div style="display:flex;gap:8px">
+          <button onclick="editTrip('${doc.id}')" style="background:#EAF5F0;color:var(--sage);border:none;padding:6px 12px;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer">✏️ Modifier</button>
+          <button onclick="del('jp_trips','${doc.id}')" style="color:#DDD;background:none;border:none;cursor:pointer;font-size:18px">×</button>
+        </div>
       </div>
       ${lines}
       <div class="trip-total">
@@ -1073,6 +1076,39 @@ db.collection('jp_trips').orderBy('ts','desc').onSnapshot(s => {
     </div>`;
   });
 });
+
+window.editTrip = (id) => {
+  db.collection('jp_trips').doc(id).get().then(doc => {
+    if (!doc.exists) return;
+    const d = doc.data();
+    document.getElementById('trip-dest').value = d.dest || '';
+    document.getElementById('trip-date').value = d.date || '';
+    // rebuild activity rows
+    const form = document.getElementById('trip-activities-form');
+    form.innerHTML = '';
+    (d.activities || []).forEach(a => {
+      const div = document.createElement('div');
+      div.className = 'trip-act-row';
+      div.style.cssText = 'display:flex;gap:8px;margin-bottom:6px';
+      div.innerHTML = `<input type="text" placeholder="Activité" class="inp trip-act-name" style="flex:1;margin:0" value="${a.name}"><input type="number" placeholder="€" class="inp trip-act-price" style="width:70px;margin:0" value="${a.price}"><button onclick="this.parentNode.remove();recalcTrip()" style="background:none;border:none;cursor:pointer;color:#DDD;font-size:18px">×</button>`;
+      form.appendChild(div);
+      div.querySelector('.trip-act-price').addEventListener('input', recalcTrip);
+    });
+    if (!d.activities || !d.activities.length) {
+      const div = document.createElement('div');
+      div.className = 'trip-act-row';
+      div.style.cssText = 'display:flex;gap:8px;margin-bottom:6px';
+      div.innerHTML = `<input type="text" placeholder="Activité" class="inp trip-act-name" style="flex:1;margin:0"><input type="number" placeholder="€" class="inp trip-act-price" style="width:70px;margin:0">`;
+      form.appendChild(div);
+    }
+    // delete old doc then save will create new
+    db.collection('jp_trips').doc(id).delete();
+    recalcTrip();
+    // scroll to form
+    document.getElementById('trip-dest').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById('trip-dest').focus();
+  });
+};
 
 // ── WISHLIST ───────────────────────────────────────────────────────────────────
 window.addWish = () => {
